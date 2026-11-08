@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""Spawn a headless Claude Code session with an exact allowlist of
+built-in tools, MCP tools, skills, system prompt and model.
+
+Everything not named is off: user/project settings, CLAUDE.md, plugins,
+user MCP servers and all skills. See SKILL.md for the why of each flag.
+"""
+import argparse
+import fnmatch
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+SKILL_ROOTS = [Path.home() / ".claude" / "skills"]
+
+
+def die(msg):
+    print(f"spawn-claude: {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def split(values):
+    out = []
+    for v in values or []:
+        out += [x.strip() for x in v.split(",") if x.strip()]
+    return out
+
+
+def read_text(text, path):
+    if text is not None and path is not None:
+        die("give text or file, not both")
+    return Path(path).read_text() if path else text
+
+
+def resolve_skill(spec):
+    p = Path(spec).expanduser()
+    if p.is_file():
+        return p
+    if (p / "SKILL.md").is_file():
+        return p / "SKILL.md"
+    for root in SKILL_ROOTS:
+        cand = root / spec / "SKILL.md"
+        if cand.is_file():
+            return cand
+    die(f"skill not found: {spec} (give a skill dir, a SKILL.md, or a name in ~/.claude/skills)")
+
+
+def frontmatter(md_path):
+    text = md_path.read_text()
+    m = re.match(r"^---\n(.*?)\n---", text, re.S)
+    meta = {}
+    if m:
+        for line in m.group(1).splitlines():
+            k, sep, v = line.partition(":")
+            if sep and not line.startswith(" "):
+                meta[k.strip()] = v.strip().strip("'\"")
+    return meta.get("name") or md_path.parent.name, meta.get("description", "")
+
+
+def skill_index(paths):
+    lines = [
+        "# Skills",
+        "",
+        "These skills are available. A skill is a file of instructions for one kind of task.",
+        "When a request matches a skill's description, Read its SKILL.md before doing anything else",
+        "and follow it. Files a skill mentions are relative to that skill's folder.",
+        "",
+    ]
+    for p in paths:
+        name, desc = frontmatter(p)
+        lines.append(f"- **{name}**: {desc}\n  SKILL.md: {p}")
+    return "\n".join(lines)
+
+
+def probe_init(cmd, cwd):
+    """Start claude, read the init event, kill it before any API call."""
+    proc = subprocess.Popen(
+        cmd + ["--output-format", "stream-json", "--verbose", "probe"],
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, cwd=cwd,
+    )
+    try:
+        for line in proc.stdout:
+            try:
+                ev = json.loads(line)
+            except ValueError:
+                continue
+            if ev.get("type") == "system" and ev.get("subtype") == "init":
+                return ev
+    finally:
+        proc.kill()
+        proc.wait()
+    die("probe got no init event; run with --dry-run to see the command")
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Arguments after `--` go to `claude` unchanged (e.g. --output-format json).",
+    )
+    ap.add_argument("prompt", nargs="?", help="task prompt (or --prompt-file, or stdin)")
+    ap.add_argument("--prompt-file")
+    ap.add_argument("--system", help="replace the system prompt with this text")
+    ap.add_argument("--system-file")
+    ap.add_argument("--append-system", help="append to the system prompt")
+    ap.add_argument("--append-system-file")
+    ap.add_argument("--tools", action="append", help='built-in tools, comma list; "" = none (default)')
+    ap.add_argument("--mcp-config", action="append", help="MCP config JSON file or string; repeatable")
+    ap.add_argument("--mcp-tools", action="append",
+                    help="MCP tool allowlist, comma list, globs ok (mcp__pw__browser_*); default: all tools of the given servers")
+    ap.add_argument("--skills", action="append", help="skill dirs, SKILL.md paths, or names in ~/.claude/skills")
+    ap.add_argument("--model")
+    ap.add_argument("--effort", choices=["low", "medium", "high", "xhigh", "max"])
+    ap.add_argument("--fallback-model")
+    ap.add_argument("--permission-mode", help="default: only the allowlisted tools are pre-approved")
+    ap.add_argument("--max-turns")
+    ap.add_argument("--max-budget-usd")
+    ap.add_argument("--cwd", help="working directory of the spawned session")
+    ap.add_argument("--add-dir", action="append")
+    ap.add_argument("--log", help="append the session's output to this file (locked, safe for parallel runs)")
+    ap.add_argument("--tag", help="label for this run's entry in --log")
+    ap.add_argument("--dry-run", action="store_true", help="print the command and the probed tool/skill list, then exit")
+    ap.add_argument("--quiet", action="store_true", help="skip the summary on stderr")
+
+    argv = sys.argv[1:]
+    extra = []
+    if "--" in argv:
+        i = argv.index("--")
+        argv, extra = argv[:i], argv[i + 1:]
+    a = ap.parse_args(argv)
+
+    claude = shutil.which("claude") or die("claude not on PATH")
+    cwd = a.cwd or os.getcwd()
+
+    tools = split(a.tools)
+    skills = [resolve_skill(s) for s in split(a.skills)]
+    if skills and "Read" not in tools:
+        tools.append("Read")  # skills load through Read
+
+    system = read_text(a.system, a.system_file)
+    append = read_text(a.append_system, a.append_system_file)
+    if skills:
+        append = "\n\n".join(x for x in [append, skill_index(skills)] if x)
+
+    cmd = [claude, "-p",
+           "--setting-sources", "",
+           "--strict-mcp-config",
+           "--disable-slash-commands",
+           "--tools", ",".join(tools)]
+    for c in a.mcp_config or []:
+        cmd += ["--mcp-config", c]
+    for d in a.add_dir or []:
+        cmd += ["--add-dir", d]
+    for flag, val in [("--model", a.model), ("--effort", a.effort),
+                      ("--fallback-model", a.fallback_model),
+                      ("--max-turns", a.max_turns), ("--max-budget-usd", a.max_budget_usd),
+                      ("--system-prompt", system), ("--append-system-prompt", append)]:
+        if val is not None:
+            cmd += [flag, val]
+
+    # MCP tools can't be allowlisted directly: --tools ignores them and
+    # --allowedTools only pre-approves. So probe the real list and deny the rest.
+    mcp_allowed = []
+    if a.mcp_config:
+        init = probe_init(cmd, cwd)
+        mcp_all = [t for t in init.get("tools", []) if t.startswith("mcp__")]
+        bad = [s["name"] for s in init.get("mcp_servers", []) if s.get("status") not in (None, "connected")]
+        if bad:
+            print(f"spawn-claude: warning: MCP servers not connected: {bad}", file=sys.stderr)
+        pats = split(a.mcp_tools) or ["mcp__*"]
+        mcp_allowed = [t for t in mcp_all if any(fnmatch.fnmatchcase(t, p) for p in pats)]
+        for p in pats:
+            if not any(fnmatch.fnmatchcase(t, p) for t in mcp_all):
+                print(f"spawn-claude: warning: --mcp-tools {p!r} matched nothing", file=sys.stderr)
+        denied = [t for t in mcp_all if t not in mcp_allowed]
+        if denied:
+            cmd += ["--disallowedTools", ",".join(denied)]
+    elif a.mcp_tools:
+        die("--mcp-tools needs --mcp-config")
+
+    if a.permission_mode:
+        cmd += ["--permission-mode", a.permission_mode]
+    elif tools or mcp_allowed:
+        cmd += ["--allowedTools", ",".join(tools + mcp_allowed)]
+
+    cmd += extra
+
+    summary = {
+        "model": a.model or "(default)",
+        "effort": a.effort or "(default)",
+        "tools": tools,
+        "mcp_tools": mcp_allowed,
+        "skills": [frontmatter(p)[0] for p in skills],
+        "system_prompt": "replaced" if system else "default",
+    }
+
+    if a.dry_run:
+        init = probe_init(cmd, cwd)
+        summary["probed_tools"] = init.get("tools")
+        summary["probed_skills"] = init.get("skills")
+        summary["probed_mcp_servers"] = init.get("mcp_servers")
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
+        print(" ".join(map(repr, cmd)))
+        return 0
+
+    prompt = read_text(a.prompt, a.prompt_file)
+    if prompt is None:
+        if sys.stdin.isatty():
+            die("no prompt: pass it as an argument, --prompt-file, or stdin")
+        prompt = sys.stdin.read()
+
+    if not a.quiet:
+        print("spawn-claude: " + json.dumps(summary, ensure_ascii=False), file=sys.stderr)
+    if not a.log:
+        return subprocess.run(cmd + [prompt], cwd=cwd).returncode
+
+    # Append-only: the session gets no write tools; this process appends its
+    # output under an exclusive lock so parallel runs never interleave.
+    import fcntl
+    from datetime import datetime
+    res = subprocess.run(cmd + [prompt], cwd=cwd, stdout=subprocess.PIPE, text=True)
+    sys.stdout.write(res.stdout)
+    head = f"## {datetime.now().isoformat(timespec='seconds')}"
+    head += f" {a.tag}" if a.tag else ""
+    head += f" model={a.model or 'default'} exit={res.returncode}"
+    entry = f"{head}\n\n{res.stdout.rstrip()}\n\n"
+    with open(a.log, "a") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        f.write(entry)
+        f.flush()
+        fcntl.flock(f, fcntl.LOCK_UN)
+    return res.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())
