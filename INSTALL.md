@@ -9,12 +9,12 @@ You need these first:
 ## From a clone
 
 1. Clone the repo anywhere.
-2. Link the folder as a skill so sessions can load it.
+2. Link the folder as a skill so sessions can load it. Skills live in the Claude Code config dir: `$CLAUDE_CONFIG_DIR` when set, else `~/.claude`.
 3. Link the command onto your `PATH`.
 
 ```
 git clone https://github.com/jinhuang712/claude-code-spawn ~/claude-code-spawn
-ln -s ~/claude-code-spawn ~/.claude/skills/spawn-claude
+ln -s ~/claude-code-spawn "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/spawn-claude"
 ln -s ~/claude-code-spawn/bin/spawn-claude ~/.local/bin/spawn-claude
 ```
 
@@ -29,7 +29,7 @@ Run `git pull` in the clone. The links keep pointing at it.
 Delete the two links and the clone.
 
 ```
-rm ~/.claude/skills/spawn-claude ~/.local/bin/spawn-claude
+rm "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/spawn-claude" ~/.local/bin/spawn-claude
 ```
 
 ## When it fails

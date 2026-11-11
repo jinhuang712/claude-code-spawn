@@ -16,7 +16,7 @@ A Claude Code skill plus one small command. A session that loads the skill can s
 ## Install
 
 ```
-git clone https://github.com/jinhuang712/claude-code-spawn ~/claude-code-spawn && ln -s ~/claude-code-spawn ~/.claude/skills/spawn-claude && ln -s ~/claude-code-spawn/bin/spawn-claude ~/.local/bin/spawn-claude
+git clone https://github.com/jinhuang712/claude-code-spawn ~/claude-code-spawn && ln -s ~/claude-code-spawn "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/spawn-claude" && ln -s ~/claude-code-spawn/bin/spawn-claude ~/.local/bin/spawn-claude
 ```
 
 Requirements, update and removal are in [INSTALL.md](INSTALL.md).
