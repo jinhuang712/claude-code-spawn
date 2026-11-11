@@ -15,7 +15,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-SKILL_ROOTS = [Path.home() / ".claude" / "skills"]
+# Claude Code keeps skills in its config dir, which CLAUDE_CONFIG_DIR moves.
+# ~/.claude/skills stays as the fallback.
+SKILL_ROOTS = list(dict.fromkeys([
+    Path(os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude").expanduser() / "skills",
+    Path.home() / ".claude" / "skills",
+]))
 # A terminal can load its own plugin into every session through this variable, and
 # Calm does. --setting-sources "" does not stop it, so the child never gets it.
 TERMINAL_PLUGINS = "CLAUDE_CODE_PLUGIN_DIRS"
@@ -49,7 +54,8 @@ def resolve_skill(spec):
         cand = root / spec / "SKILL.md"
         if cand.is_file():
             return cand
-    die(f"skill not found: {spec} (give a skill dir, a SKILL.md, or a name in ~/.claude/skills)")
+    roots = " or ".join(str(r) for r in SKILL_ROOTS)
+    die(f"skill not found: {spec} (give a skill dir, a SKILL.md, or a name in {roots})")
 
 
 def frontmatter(md_path):
@@ -119,7 +125,7 @@ def main():
     ap.add_argument("--mcp-config", action="append", help="MCP config JSON file or string; repeatable")
     ap.add_argument("--mcp-tools", action="append",
                     help="MCP tool allowlist, comma list, globs ok (mcp__pw__browser_*); default: all tools of the given servers")
-    ap.add_argument("--skills", action="append", help="skill dirs, SKILL.md paths, or names in ~/.claude/skills")
+    ap.add_argument("--skills", action="append", help="skill dirs, SKILL.md paths, or names in $CLAUDE_CONFIG_DIR/skills or ~/.claude/skills")
     ap.add_argument("--model")
     ap.add_argument("--effort", choices=["low", "medium", "high", "xhigh", "max"])
     ap.add_argument("--fallback-model")
