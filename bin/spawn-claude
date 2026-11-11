@@ -16,6 +16,9 @@ import sys
 from pathlib import Path
 
 SKILL_ROOTS = [Path.home() / ".claude" / "skills"]
+# A terminal can load its own plugin into every session through this variable, and
+# Calm does. --setting-sources "" does not stop it, so the child never gets it.
+TERMINAL_PLUGINS = "CLAUDE_CODE_PLUGIN_DIRS"
 
 
 def die(msg):
@@ -76,11 +79,16 @@ def skill_index(paths):
     return "\n".join(lines)
 
 
+def child_env():
+    """This process's environment, less the plugins a terminal adds."""
+    return {k: v for k, v in os.environ.items() if k != TERMINAL_PLUGINS}
+
+
 def probe_init(cmd, cwd):
     """Start claude, read the init event, kill it before any API call."""
     proc = subprocess.Popen(
         cmd + ["--output-format", "stream-json", "--verbose", "probe"],
-        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, cwd=cwd,
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, cwd=cwd, env=child_env(),
     )
     try:
         for line in proc.stdout:
@@ -215,13 +223,13 @@ def main():
     if not a.quiet:
         print("spawn-claude: " + json.dumps(summary, ensure_ascii=False), file=sys.stderr)
     if not a.log:
-        return subprocess.run(cmd + [prompt], cwd=cwd).returncode
+        return subprocess.run(cmd + [prompt], cwd=cwd, env=child_env()).returncode
 
     # Append-only: the session gets no write tools; this process appends its
     # output under an exclusive lock so parallel runs never interleave.
     import fcntl
     from datetime import datetime
-    res = subprocess.run(cmd + [prompt], cwd=cwd, stdout=subprocess.PIPE, text=True)
+    res = subprocess.run(cmd + [prompt], cwd=cwd, env=child_env(), stdout=subprocess.PIPE, text=True)
     sys.stdout.write(res.stdout)
     head = f"## {datetime.now().isoformat(timespec='seconds')}"
     head += f" {a.tag}" if a.tag else ""
