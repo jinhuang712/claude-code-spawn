@@ -110,7 +110,7 @@ The caller passes MCP server configs and names the tools it wants from them. Nam
 
 **Status:** 🚧 `$ARGUMENTS` and a skill's own tool permissions do not apply
 
-The caller names each skill by its folder, its `SKILL.md` path or its name under `~/.claude/skills`. The child sees only those skills and reads one when a request matches it. An unknown skill stops the call before the child starts.
+The caller names each skill by its folder, its `SKILL.md` path or its name. A name is looked up in `$CLAUDE_CONFIG_DIR/skills`, then in `~/.claude/skills`. The child sees only those skills and reads one when a request matches it. An unknown skill stops the call before the child starts.
 
 - **Commands:** [spawn-claude](CLI.md#spawn-claude)
 

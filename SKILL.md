@@ -27,7 +27,7 @@ directly; everything else is plain `claude` flags.
 | Built-in tools | `--tools "Read,Bash"` (`""` = none) | does not touch MCP tools |
 | MCP servers | `--mcp-config file.json` | |
 | MCP tools | helper `--mcp-tools 'mcp__srv__a,mcp__srv__b_*'` | CLI only filters by deny list; helper probes and denies the rest |
-| Skills | helper `--skills name-or-path,...` | CLI can't allowlist skills; helper disables all and injects an index the child Reads |
+| Skills | helper `--skills name-or-path,...` | CLI can't allowlist skills; helper disables all and injects an index the child Reads; a name is looked up in `$CLAUDE_CONFIG_DIR/skills`, then `~/.claude/skills` |
 | System prompt | `--system` / `--system-file` replace, `--append-system[-file]` add | |
 | Model | `--model`, `--effort`, `--fallback-model` | |
 | Approval | allowlisted tools are pre-approved; else `--permission-mode` | |

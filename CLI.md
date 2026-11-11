@@ -22,7 +22,7 @@ The prompt comes from the argument first, then `--prompt-file`, then stdin.
 | `--tools LIST` | comma list of built-in tools (repeatable) | none |
 | `--mcp-config F` | MCP server config file or JSON string, repeatable | none |
 | `--mcp-tools GLOBS` | MCP tools to keep, comma list | every tool of the given servers |
-| `--skills LIST` | skill folders · `SKILL.md` paths · names in `~/.claude/skills` | none |
+| `--skills LIST` | skill folders · `SKILL.md` paths · names in `$CLAUDE_CONFIG_DIR/skills`, then `~/.claude/skills` | none |
 | `--model M` | model of the child | the Claude Code default |
 | `--effort E` | `low` · `medium` · `high` · `xhigh` · `max` | the Claude Code default |
 | `--fallback-model M` | model to use when the first is overloaded | — |
@@ -99,4 +99,5 @@ spawn-claude: {"model": …, "effort": …, "tools": […], "mcp_tools": […], 
 | Variable | Means | Default |
 |---|---|---|
 | `PATH` | where `claude` is found | — |
+| `CLAUDE_CONFIG_DIR` | where `--skills` looks for a name first | `~/.claude` |
 | `CLAUDE_CODE_PLUGIN_DIRS` | never passed to the child | — |

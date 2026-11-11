@@ -8,7 +8,7 @@ You can start a headless Claude Code session that loads none of your settings, `
 
 ### Allowlists
 
-You can give the session exactly the built-in tools, single MCP tools and skills you name. Skills load by reading their file, so `$ARGUMENTS` does not work in them.
+You can give the session exactly the built-in tools, single MCP tools and skills you name. Skills load by reading their file, so `$ARGUMENTS` does not work in them. A skill named without a path is found in the config dir that `CLAUDE_CONFIG_DIR` sets, and in `~/.claude/skills`.
 
 ### Output
 
