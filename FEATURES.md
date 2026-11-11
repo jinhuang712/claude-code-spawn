@@ -36,6 +36,7 @@ The child starts with nothing the caller did not name.
 - User, project and local settings stay off.
 - `CLAUDE.md` files stay out of its context.
 - Installed plugins and their skills stay off.
+- A plugin your terminal adds stays off, such as Calm's.
 - MCP servers from the user's config stay off.
 
 The child still logs in with the user's Claude Code login.

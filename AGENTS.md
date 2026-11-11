@@ -16,6 +16,7 @@ This repo is a Claude Code skill (`SKILL.md`) and its helper (`bin/spawn-claude`
 |---|---|
 | `SKILL.md` | the skill a session loads, self-contained |
 | `bin/` | the helper command |
+| `tests/` | the helper's tests with a stub `claude`: `python3 -m unittest discover tests` |
 | the root | the docs and `LICENSE` |
 
 `SKILL.md` repeats facts from the docs on purpose. A session loads it alone, so it must stand alone. When a fact changes, change it in `SKILL.md` too.

@@ -99,3 +99,4 @@ spawn-claude: {"model": …, "effort": …, "tools": […], "mcp_tools": […], 
 | Variable | Means | Default |
 |---|---|---|
 | `PATH` | where `claude` is found | — |
+| `CLAUDE_CODE_PLUGIN_DIRS` | never passed to the child | — |

@@ -23,7 +23,7 @@ directly; everything else is plain `claude` flags.
 
 | Control | How | Note |
 |---|---|---|
-| Isolation | `--setting-sources "" --strict-mcp-config` | drops user settings, CLAUDE.md, plugins, user MCP |
+| Isolation | `--setting-sources "" --strict-mcp-config`, and no `CLAUDE_CODE_PLUGIN_DIRS` in the env | drops user settings, CLAUDE.md, plugins, user MCP; a terminal such as Calm adds its plugin through that variable, which the helper drops (checked on 2.1.322) |
 | Built-in tools | `--tools "Read,Bash"` (`""` = none) | does not touch MCP tools |
 | MCP servers | `--mcp-config file.json` | |
 | MCP tools | helper `--mcp-tools 'mcp__srv__a,mcp__srv__b_*'` | CLI only filters by deny list; helper probes and denies the rest |
