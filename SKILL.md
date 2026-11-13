@@ -11,11 +11,24 @@ directly; everything else is plain `claude` flags.
 
 ## Principles
 
+- **Use it for many small jobs, or one job that must run isolated.** A single
+  job that needs the caller's conversation belongs in a fork or a subagent.
 - **Default closed.** Name what the child gets; everything else stays off.
-- **Cheapest model that can do it.** `claude-haiku-5-5` + `--effort low` for
-  mechanical work; step up only when output quality demands it.
+- **Model and effort come from the caller's rules.** With none, start at the
+  cheapest model that can do the job and step up only when a check fails.
+- **Replace the system prompt for a batch** (`--system` / `--system-file`). The
+  children then share one cached prompt. One-turn runs on `claude-haiku-5-5`
+  with no tools (claude 2.1.323, 2026-11-13): $0.00065 a child with the default
+  prompt; with a replaced one, $0.00013 for the first child and $0.00001 for
+  each later one.
+- **Run one job first, then the batch.** Children that start together cannot
+  read each other's cache, so each pays the first-run price. This helps only
+  with a replaced prompt: under the default one, children shared almost none.
+- **Ask for a short answer in a fixed shape.** The parent reads every log entry
+  at its own model's price.
 - **Children never write shared state.** They print; the parent appends.
-- **Cap cost** with `--max-turns` / `--max-budget-usd` on every batch.
+- **Cap cost** with `--max-turns` / `--max-budget-usd` on every batch, and read
+  what a run spent from `cost=` in its log entry.
 - **Check before a big batch**: `--dry-run` prints the tools, skills and MCP
   servers the child will actually have.
 
@@ -56,7 +69,7 @@ pass to `claude` (e.g. `--output-format json`, `--json-schema ...`,
 Isolated one-off with one skill and a replaced system prompt:
 
 ```bash
-spawn-claude --model claude-haiku-5-5 --effort low \
+spawn-claude --model claude-haiku-5-5 \
   --skills himalaya --tools Bash --system-file role.md "List unread mail subjects"
 ```
 
@@ -72,9 +85,16 @@ Parallel cheap batch, one line of input per job, results appended to one log:
 
 ```bash
 cat items.txt | xargs -P8 -I{} spawn-claude --quiet \
-  --model claude-haiku-5-5 --effort low --max-turns 3 --max-budget-usd 0.05 \
+  --model claude-haiku-5-5 --system-file role.md --max-turns 3 --max-budget-usd 0.05 \
   --tools Read --log report.md --tag "{}" "Classify {}: bug/feature/question" \
   -- --no-session-persistence > /dev/null
+```
+
+Before a big batch, run its first item alone with the same flags; the rest then
+read the cached prompt. Afterwards, add up what the batch spent:
+
+```bash
+grep -o 'cost=[0-9.]*' report.md | cut -d= -f2 | paste -sd+ - | bc
 ```
 
 Structured results for machine merging:

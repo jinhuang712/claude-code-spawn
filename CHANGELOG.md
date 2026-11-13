@@ -16,4 +16,4 @@ You can append each session's output to a shared log under a lock. Parallel runs
 
 ### Skill
 
-Your Claude Code sessions can load the `spawn-claude` skill and write the spawn command on their own.
+Your Claude Code sessions can load the `spawn-claude` skill and write the spawn command on their own. The skill takes the model and the effort from your own rules. It teaches two measured ways to make a batch cheaper: replace the system prompt, and run one job before the rest.

@@ -53,6 +53,12 @@ The child still logs in with the user's Claude Code login.
 
 The caller replaces the default system prompt or appends to it. The caller picks the model, the effort and a fallback model. Turn and dollar caps stop a run that goes too far.
 
+A replaced prompt also makes a batch cheaper, because the children then share one cached prompt. These numbers come from one-turn runs with Claude Code 2.1.323 on `claude-haiku-5-5` with no tools on 2026-11-13:
+
+- With the default prompt each child cost $0.00065.
+- With a replaced prompt the first child cost $0.00013.
+- With a replaced prompt each later child cost $0.00001.
+
 - **Commands:** [spawn-claude](CLI.md#spawn-claude)
 
 **Stories:**
@@ -142,6 +148,11 @@ With `--log` the helper appends the child's output to a file under a lock. Each 
 **Status:** ✅
 
 Many calls run side by side through `xargs -P` or any other runner. Their log entries never interleave. Each run stays under its own turn and dollar caps.
+
+Children that start at the same moment share no cached prompt, so one run before the batch makes the rest cheaper. This holds with a replaced system prompt only. Measured on 2026-11-13 with three children each time:
+
+- Started together with nothing cached: each paid the first-run price.
+- Started together after an earlier batch had finished: each paid the later price.
 
 - **Commands:** [spawn-claude](CLI.md#spawn-claude)
 
