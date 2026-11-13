@@ -12,7 +12,7 @@ You can give the session exactly the built-in tools, single MCP tools and skills
 
 ### Output
 
-You can append each session's output to a shared log under a lock. Parallel runs never mix their entries.
+You can append each session's output to a shared log under a lock. Parallel runs never mix their entries. Each entry shows what its run cost.
 
 ### Skill
 

@@ -90,6 +90,19 @@ def child_env():
     return {k: v for k, v in os.environ.items() if k != TERMINAL_PLUGINS}
 
 
+def last_result(stdout):
+    """The result event that ends claude's JSON output, or None when there is none."""
+    text = stdout.strip()
+    for candidate in (text, text.splitlines()[-1] if text else ""):
+        try:
+            ev = json.loads(candidate)
+        except ValueError:
+            continue
+        if isinstance(ev, dict) and ev.get("type") == "result":
+            return ev
+    return None
+
+
 def probe_init(cmd, cwd):
     """Start claude, read the init event, kill it before any API call."""
     proc = subprocess.Popen(
@@ -235,12 +248,24 @@ def main():
     # output under an exclusive lock so parallel runs never interleave.
     import fcntl
     from datetime import datetime
-    res = subprocess.run(cmd + [prompt], cwd=cwd, env=child_env(), stdout=subprocess.PIPE, text=True)
-    sys.stdout.write(res.stdout)
+    # A run's cost is only in claude's JSON result. Ask for JSON unless the caller
+    # chose a format; the caller's own format goes through untouched.
+    own_format = any(x == "--output-format" or x.startswith("--output-format=") for x in extra)
+    fmt = [] if own_format else ["--output-format", "json"]
+    res = subprocess.run(cmd + fmt + [prompt], cwd=cwd, env=child_env(), stdout=subprocess.PIPE, text=True)
+    out, cost = res.stdout, None
+    result = last_result(out)
+    if result:
+        cost = result.get("total_cost_usd")
+        if not own_format and isinstance(result.get("result"), str):
+            out = result["result"].rstrip("\n") + "\n"  # the answer, as text mode prints it
+    sys.stdout.write(out)
     head = f"## {datetime.now().isoformat(timespec='seconds')}"
     head += f" {a.tag}" if a.tag else ""
     head += f" model={a.model or 'default'} exit={res.returncode}"
-    entry = f"{head}\n\n{res.stdout.rstrip()}\n\n"
+    if isinstance(cost, (int, float)):
+        head += f" cost={cost:.6f}"
+    entry = f"{head}\n\n{out.rstrip()}\n\n"
     with open(a.log, "a") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
         f.write(entry)

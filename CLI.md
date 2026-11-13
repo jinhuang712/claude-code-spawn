@@ -43,6 +43,9 @@ Everything after `--` goes to `claude` unchanged, such as `--output-format json`
 **Prints:**
 
 - stdout: the child's output as `claude -p` prints it.
+- stdout with `--log`: the child's answer as text, which the helper takes from the child's JSON result.
+- stdout with `--log` and an `--output-format` after `--`: the child's output unchanged.
+- stdout with `--log` when the child printed no JSON result: the child's output unchanged.
 - stderr: one summary line starting with `spawn-claude:` unless `--quiet`.
 - stderr: a warning for an MCP server that failed to connect.
 - stderr: a warning for an `--mcp-tools` pattern that matched nothing.
@@ -89,10 +92,13 @@ spawn-claude: {"model": …, "effort": …, "tools": […], "mcp_tools": […], 
 **Log entry** in the `--log` file, one per run:
 
 ```
-## <YYYY-MM-DDTHH:MM:SS> <tag> model=<model> exit=<code>
+## <YYYY-MM-DDTHH:MM:SS> <tag> model=<model> exit=<code> cost=<dollars>
 
-<the child's stdout>
+<what the helper printed on stdout>
 ```
+
+- `cost` is what Claude Code reports for the run, with six decimals.
+- `cost` is left out when the child printed no JSON result.
 
 ## Environment
 

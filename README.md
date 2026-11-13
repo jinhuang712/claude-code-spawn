@@ -37,7 +37,7 @@ cat issues.txt | xargs -P8 -I{} spawn-claude --quiet --model claude-haiku-5-5 \
 `report.md` then holds one entry per line of the input:
 
 ```
-## 2026-11-08T23:24:29 login fails on Safari model=claude-haiku-5-5 exit=0
+## 2026-11-08T23:24:29 login fails on Safari model=claude-haiku-5-5 exit=0 cost=0.000648
 
 bug
 ```

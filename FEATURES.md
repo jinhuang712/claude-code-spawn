@@ -128,13 +128,14 @@ The child prints its result. Only the helper writes files.
 
 **Status:** ✅
 
-With `--log` the helper appends the child's output to a file under a lock. Each entry starts with its time, its tag, the model and the exit code. The child has no write tool for that file, so it cannot change earlier entries.
+With `--log` the helper appends the child's output to a file under a lock. Each entry starts with its time, its tag, the model, the exit code and what the run cost in dollars. The cost is missing when the child ended before it reported one. The child has no write tool for that file, so it cannot change earlier entries.
 
 - **Commands:** [spawn-claude](CLI.md#spawn-claude)
 
 **Stories:**
 
 - A session collects the verdicts of many children into one report it reads at the end.
+- A session adds up the cost of a trial batch before it starts the full one.
 
 ### F3.2: Parallel batch
 

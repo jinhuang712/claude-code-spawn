@@ -31,7 +31,7 @@ directly; everything else is plain `claude` flags.
 | System prompt | `--system` / `--system-file` replace, `--append-system[-file]` add | |
 | Model | `--model`, `--effort`, `--fallback-model` | |
 | Approval | allowlisted tools are pre-approved; else `--permission-mode` | |
-| Append-only log | helper `--log FILE --tag LABEL` | locked append, safe in parallel |
+| Append-only log | helper `--log FILE --tag LABEL` | locked append, safe in parallel; each entry's header ends with `cost=<dollars>` |
 
 Avoid `--bare`: it ignores OAuth login and needs `ANTHROPIC_API_KEY`.
 
@@ -89,5 +89,8 @@ spawn-claude --model claude-haiku-5-5 --log results.jsonl "..." \
 - Skills load via `Read`, not the `Skill` tool; `$ARGUMENTS` substitution and
   skill-scoped tool permissions don't apply.
 - `--mcp-tools` starts each MCP server twice (probe + run).
+- With `--log` the helper runs the child with `--output-format json` to read the
+  cost, then prints the answer as text. Your own `--output-format` after `--`
+  goes through unchanged.
 - A child with no tools can still *claim* it did something; trust the log and
   the filesystem, not its words.
